@@ -22,9 +22,10 @@ async function getUserFromRequest(request: NextRequest) {
 // GET /api/projects/[projectId]/tasks
 export async function GET(
   request: NextRequest,
-  { params }: { params: { projectId: string } }
+  { params }: { params: Promise<{ projectId: string }> }
 ) {
   try {
+    const { projectId } = await params;
     const user = await getUserFromRequest(request);
 
     if (!user) {
@@ -34,7 +35,7 @@ export async function GET(
     // Check if user is member of the project
     const member = await prisma.projectMember.findFirst({
       where: {
-        projectId: params.projectId,
+        projectId,
         userId: user.id,
       },
     });
@@ -45,7 +46,7 @@ export async function GET(
 
     const tasks = await prisma.task.findMany({
       where: {
-        projectId: params.projectId,
+        projectId,
       },
       include: {
         assignee: true,
@@ -66,9 +67,10 @@ export async function GET(
 // POST /api/projects/[projectId]/tasks
 export async function POST(
   request: NextRequest,
-  { params }: { params: { projectId: string } }
+  { params }: { params: Promise<{ projectId: string }> }
 ) {
   try {
+    const { projectId } = await params;
     const user = await getUserFromRequest(request);
 
     if (!user) {
@@ -78,7 +80,7 @@ export async function POST(
     // Check if user is member of the project
     const member = await prisma.projectMember.findFirst({
       where: {
-        projectId: params.projectId,
+        projectId,
         userId: user.id,
       },
     });
@@ -102,7 +104,7 @@ export async function POST(
         title,
         description,
         priority: priority || 'MEDIUM',
-        projectId: params.projectId,
+        projectId,
         createdById: user.id,
         assigneeId,
         dueDate: dueDate ? new Date(dueDate) : null,

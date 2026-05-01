@@ -22,9 +22,10 @@ async function getUserFromRequest(request: NextRequest) {
 // PUT /api/tasks/[taskId]
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { taskId: string } }
+  { params }: { params: Promise<{ taskId: string }> }
 ) {
   try {
+    const { taskId } = await params;
     const user = await getUserFromRequest(request);
 
     if (!user) {
@@ -36,7 +37,7 @@ export async function PUT(
 
     // Verify user has access to the task
     const task = await prisma.task.findUnique({
-      where: { id: params.taskId },
+      where: { id: taskId },
       include: { project: { include: { members: true } } },
     });
 
@@ -50,7 +51,7 @@ export async function PUT(
     }
 
     const updatedTask = await prisma.task.update({
-      where: { id: params.taskId },
+      where: { id: taskId },
       data: {
         status: status || undefined,
         priority: priority || undefined,
@@ -77,9 +78,10 @@ export async function PUT(
 // DELETE /api/tasks/[taskId]
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { taskId: string } }
+  { params }: { params: Promise<{ taskId: string }> }
 ) {
   try {
+    const { taskId } = await params;
     const user = await getUserFromRequest(request);
 
     if (!user) {
@@ -88,7 +90,7 @@ export async function DELETE(
 
     // Verify user has access to the task
     const task = await prisma.task.findUnique({
-      where: { id: params.taskId },
+      where: { id: taskId },
       include: { project: { include: { members: true } } },
     });
 
@@ -102,7 +104,7 @@ export async function DELETE(
     }
 
     await prisma.task.delete({
-      where: { id: params.taskId },
+      where: { id: taskId },
     });
 
     return NextResponse.json({ message: 'Task deleted' });
