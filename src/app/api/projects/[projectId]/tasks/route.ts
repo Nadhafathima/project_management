@@ -3,23 +3,19 @@ import prisma from '@/lib/prisma';
 import { verifyToken, extractTokenFromHeader } from '@/lib/auth';
 
 async function getUserFromRequest(request: NextRequest) {
-  const token = extractTokenFromHeader(request.headers.get('authorization'));
+  const authHeader = request.headers.get('authorization') ?? undefined;
+  const token = extractTokenFromHeader(authHeader);
 
-  if (!token) {
-    return null;
-  }
+  if (!token) return null;
 
   const payload = verifyToken(token);
-  if (!payload) {
-    return null;
-  }
+  if (!payload) return null;
 
   return prisma.user.findUnique({
     where: { id: payload.userId },
   });
 }
 
-// GET /api/projects/[projectId]/tasks
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ projectId: string }> }
@@ -32,12 +28,8 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check if user is member of the project
     const member = await prisma.projectMember.findFirst({
-      where: {
-        projectId,
-        userId: user.id,
-      },
+      where: { projectId, userId: user.id },
     });
 
     if (!member) {
@@ -45,9 +37,7 @@ export async function GET(
     }
 
     const tasks = await prisma.task.findMany({
-      where: {
-        projectId,
-      },
+      where: { projectId },
       include: {
         assignee: true,
         creator: true,
@@ -57,14 +47,10 @@ export async function GET(
     return NextResponse.json(tasks);
   } catch (error) {
     console.error('Get tasks error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
-// POST /api/projects/[projectId]/tasks
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ projectId: string }> }
@@ -77,12 +63,8 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check if user is member of the project
     const member = await prisma.projectMember.findFirst({
-      where: {
-        projectId,
-        userId: user.id,
-      },
+      where: { projectId, userId: user.id },
     });
 
     if (!member) {
@@ -93,10 +75,7 @@ export async function POST(
     const { title, description, priority, assigneeId, dueDate } = body;
 
     if (!title) {
-      return NextResponse.json(
-        { error: 'Task title is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Task title is required' }, { status: 400 });
     }
 
     const task = await prisma.task.create({
@@ -118,9 +97,6 @@ export async function POST(
     return NextResponse.json(task);
   } catch (error) {
     console.error('Create task error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

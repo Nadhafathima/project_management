@@ -3,29 +3,24 @@ import prisma from '@/lib/prisma';
 import { verifyToken, extractTokenFromHeader } from '@/lib/auth';
 
 async function getUserFromRequest(request: NextRequest) {
-  const token = extractTokenFromHeader(request.headers.get('authorization'));
+  const authHeader = request.headers.get('authorization') ?? undefined;
+  const token = extractTokenFromHeader(authHeader);
 
-  if (!token) {
-    return null;
-  }
+  if (!token) return null;
 
   const payload = verifyToken(token);
-  if (!payload) {
-    return null;
-  }
+  if (!payload) return null;
 
   return prisma.user.findUnique({
     where: { id: payload.userId },
   });
 }
 
-// PUT /api/tasks/[taskId]
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ taskId: string }> }
+  { params }: { params: { taskId: string } }
 ) {
   try {
-    const { taskId } = await params;
     const user = await getUserFromRequest(request);
 
     if (!user) {
@@ -35,9 +30,8 @@ export async function PUT(
     const body = await request.json();
     const { status, priority, assigneeId, description, title } = body;
 
-    // Verify user has access to the task
     const task = await prisma.task.findUnique({
-      where: { id: taskId },
+      where: { id: params.taskId },
       include: { project: { include: { members: true } } },
     });
 
@@ -51,7 +45,7 @@ export async function PUT(
     }
 
     const updatedTask = await prisma.task.update({
-      where: { id: taskId },
+      where: { id: params.taskId },
       data: {
         status: status || undefined,
         priority: priority || undefined,
@@ -68,29 +62,23 @@ export async function PUT(
     return NextResponse.json(updatedTask);
   } catch (error) {
     console.error('Update task error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
-// DELETE /api/tasks/[taskId]
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ taskId: string }> }
+  { params }: { params: { taskId: string } }
 ) {
   try {
-    const { taskId } = await params;
     const user = await getUserFromRequest(request);
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Verify user has access to the task
     const task = await prisma.task.findUnique({
-      where: { id: taskId },
+      where: { id: params.taskId },
       include: { project: { include: { members: true } } },
     });
 
@@ -104,15 +92,12 @@ export async function DELETE(
     }
 
     await prisma.task.delete({
-      where: { id: taskId },
+      where: { id: params.taskId },
     });
 
     return NextResponse.json({ message: 'Task deleted' });
   } catch (error) {
     console.error('Delete task error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

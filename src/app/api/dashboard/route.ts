@@ -3,16 +3,13 @@ import prisma from '@/lib/prisma';
 import { verifyToken, extractTokenFromHeader } from '@/lib/auth';
 
 async function getUserFromRequest(request: NextRequest) {
-  const token = extractTokenFromHeader(request.headers.get('authorization'));
+  const authHeader = request.headers.get('authorization') ?? undefined;
+  const token = extractTokenFromHeader(authHeader);
 
-  if (!token) {
-    return null;
-  }
+  if (!token) return null;
 
   const payload = verifyToken(token);
-  if (!payload) {
-    return null;
-  }
+  if (!payload) return null;
 
   return prisma.user.findUnique({
     where: { id: payload.userId },
@@ -27,7 +24,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get user's projects
     const userProjects = await prisma.projectMember.findMany({
       where: { userId: user.id },
       include: { project: true },
@@ -35,7 +31,6 @@ export async function GET(request: NextRequest) {
 
     const projectIds = userProjects.map((pm) => pm.project.id);
 
-    // Get task statistics
     const tasks = await prisma.task.findMany({
       where: {
         projectId: { in: projectIds },
@@ -54,16 +49,18 @@ export async function GET(request: NextRequest) {
       todoTasks: tasks.filter((t) => t.status === 'TODO').length,
       inProgressTasks: tasks.filter((t) => t.status === 'IN_PROGRESS').length,
       completedTasks: tasks.filter((t) => t.status === 'COMPLETED').length,
-      overdueTasks: tasks.filter((t) => t.dueDate && t.dueDate < now && t.status !== 'COMPLETED').length,
-      assignedToMe: tasks.filter((t) => t.assigneeId === user.id && t.status !== 'COMPLETED').length,
+      overdueTasks: tasks.filter(
+        (t) => t.dueDate && t.dueDate < now && t.status !== 'COMPLETED'
+      ).length,
+      assignedToMe: tasks.filter(
+        (t) => t.assigneeId === user.id && t.status !== 'COMPLETED'
+      ).length,
     };
 
-    // Get recent tasks
     const recentTasks = tasks
       .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
       .slice(0, 10);
 
-    // Get overdue tasks
     const overdueTasks = tasks.filter(
       (t) => t.dueDate && t.dueDate < now && t.status !== 'COMPLETED'
     );
@@ -79,9 +76,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('Dashboard error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
